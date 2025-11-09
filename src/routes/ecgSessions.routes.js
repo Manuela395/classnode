@@ -6,6 +6,7 @@ import {
   updateECGSessionController,
   deleteECGSessionController,
   getEligiblePatientsController,
+  getActivePatientsController,
 } from "../controllers/ecgSessions.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { checkRole } from "../middleware/roles.middleware.js";
@@ -17,6 +18,7 @@ router.use(verifyToken, checkRole(["doc"]));
 
 router.post("/", createECGSessionController);
 router.get("/eligible-patients", getEligiblePatientsController);
+router.get("/active-patients", getActivePatientsController);
 router.get("/", getAllECGSessionsController);
 router.get("/:id", getECGSessionByIdController);
 router.put("/:id", updateECGSessionController);

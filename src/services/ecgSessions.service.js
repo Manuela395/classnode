@@ -62,7 +62,7 @@ export async function deleteECGSession(id) {
 
 export async function getEligiblePatientsForSession() {
   try {
-    const sessions = await ECGSession.findAll({
+    const appointments = await Appointment.findAll({
       include: [
         {
           model: ClinicalRegister,
@@ -70,87 +70,186 @@ export async function getEligiblePatientsForSession() {
           required: true,
         },
         {
-          model: Appointment,
-          as: "appointment",
-          required: true,
-          include: [
-            {
-              model: User,
-              as: "patient",
-              required: true,
-              attributes: ["id", "name", "last_name", "identification"],
-            },
-            {
-              model: User,
-              as: "doctor",
-              required: true,
-              attributes: ["id", "name", "last_name", "identification", "email"],
-            },
-          ],
+          model: User,
+          as: "patient",
+          attributes: ["id", "name", "last_name", "identification"],
         },
         {
-          model: Device,
-          as: "device",
-          required: true,
-          attributes: ["id", "device_id", "name"],
+          model: User,
+          as: "doctor",
+          attributes: ["id", "name", "last_name", "identification", "email"],
+        },
+        {
+          model: ECGSession,
+          as: "ecgSessions",
+          required: false,
         },
       ],
     });
 
-    const activeSessions = sessions.filter((session) => {
-      const status = (session.status || "").toLowerCase();
-      const isActive =
-        !status || ["active", "recording", "in_progress"].includes(status);
-      const appointment = session.appointment;
-      const patient = appointment?.patient;
-      const doctor = appointment?.doctor;
-      const device = session.device;
-
-      return (
-        isActive &&
-        Boolean(patient?.id) &&
-        Boolean(doctor?.id) &&
-        Boolean(device?.id)
-      );
+    const eligibleAppointments = appointments.filter((apt) => {
+      const hasNoSessions = !apt.ecgSessions || apt.ecgSessions.length === 0;
+      const hasPatient = Boolean(apt.patient && apt.patient.id);
+      const hasClinicalRegister = Boolean(apt.clinicalRegister && apt.clinicalRegister.id);
+      const hasDoctor = Boolean(apt.doctor && apt.doctor.id);
+      return hasNoSessions && hasPatient && hasClinicalRegister && hasDoctor;
     });
 
-    const result = activeSessions.map((session) => {
-      const appointment = session.appointment;
-      const patient = appointment?.patient;
-      const doctor = appointment?.doctor;
-      const device = session.device;
+    const allDevices = await Device.findAll({
+      attributes: ["id", "device_id", "name"],
+      raw: true,
+    });
+
+    const deviceByCode = new Map(allDevices.map((d) => [String(d.device_id), d]));
+
+    return eligibleAppointments.map((apt) => {
+      const patientIdentification = String(apt.patient.identification || "");
+      const assignedDevice = deviceByCode.get(patientIdentification) || null;
 
       return {
-        session_id: session.id,
-        session_status: session.status || null,
-        patient_id: patient?.id ?? null,
-        patient_name: patient?.name || "",
-        patient_last_name: patient?.last_name || "",
-        patient_identification: String(patient?.identification || ""),
-        appointment_id: appointment?.id ?? null,
-        clinical_register_id:
-          session.clinical_register_id ??
-          session.clinicalRegister?.id ??
-          appointment?.clinicalRegister?.id ??
-          null,
-        assigned_device: {
-          id: device?.id ?? null,
-          device_id: device?.device_id ?? null,
-          name: device?.name || "",
-        },
+        patient_id: apt.patient.id,
+        patient_name: apt.patient.name || "",
+        patient_last_name: apt.patient.last_name || "",
+        patient_identification: patientIdentification,
+        appointment_id: apt.id,
+        clinical_register_id: apt.clinicalRegister.id,
         doctor: {
-          id: doctor?.id ?? null,
-          name: doctor?.name || "",
-          last_name: doctor?.last_name || "",
-          identification: doctor?.identification || "",
-          email: doctor?.email || "",
+          id: apt.doctor.id,
+          name: apt.doctor.name || "",
+          last_name: apt.doctor.last_name || "",
+          identification: apt.doctor.identification || "",
+          email: apt.doctor.email || "",
         },
+        assigned_device: assignedDevice
+          ? {
+              id: assignedDevice.id,
+              device_id: assignedDevice.device_id,
+              name: assignedDevice.name,
+            }
+          : null,
       };
     });
-
-    return result;
   } catch (e) {
     console.error("Error en getEligiblePatientsForSession:", e.message);
+    throw e;
+  }
+}
+
+export async function getActivePatientsForReadings() {
+  try {
+    const [sessions, allDevices] = await Promise.all([
+      ECGSession.findAll({
+        include: [
+          {
+            model: ClinicalRegister,
+            as: "clinicalRegister",
+            required: true,
+          },
+          {
+            model: Appointment,
+            as: "appointment",
+            required: true,
+            include: [
+              {
+                model: User,
+                as: "patient",
+                attributes: ["id", "name", "last_name", "identification"],
+              },
+              {
+                model: User,
+                as: "doctor",
+                attributes: ["id", "name", "last_name", "identification", "email"],
+              },
+            ],
+          },
+          {
+            model: Device,
+            as: "device",
+            attributes: ["id", "device_id", "name"],
+            required: false,
+          },
+        ],
+      }),
+      Device.findAll({
+        attributes: ["id", "device_id", "name"],
+        raw: true,
+      }),
+    ]);
+
+    const inactiveStatuses = ["stopped", "inactive", "closed", "finalized", "finalizada"];
+    const deviceById = new Map(allDevices.map((d) => [d.id, d]));
+    const deviceByCode = new Map(allDevices.map((d) => [String(d.device_id), d]));
+    const uniquePatients = new Map();
+
+    sessions.forEach((session) => {
+      const statusRaw = (session.get?.("status") ?? session.status ?? "")
+        .toString()
+        .toLowerCase();
+      if (statusRaw && inactiveStatuses.includes(statusRaw)) {
+        return;
+      }
+
+      const appointment = session.appointment;
+      const patient = appointment?.patient;
+      const doctor = appointment?.doctor;
+      const clinicalRegister = session.clinicalRegister;
+
+      if (!patient?.id || !doctor?.id || !clinicalRegister?.id) {
+        return;
+      }
+
+      let device = session.device ?? null;
+      if (!device) {
+        device =
+          deviceById.get(session.device_id) ??
+          deviceByCode.get(String(session.device_id)) ??
+          null;
+      }
+
+      if (!device) {
+        return;
+      }
+
+      if (!uniquePatients.has(patient.id)) {
+        uniquePatients.set(patient.id, {
+          patient_id: patient.id,
+          patient_name: patient.name || "",
+          patient_last_name: patient.last_name || "",
+          patient_identification: String(patient.identification || ""),
+          appointment_id: appointment.id,
+          clinical_register_id: clinicalRegister.id,
+          doctor: {
+            id: doctor.id,
+            name: doctor.name || "",
+            last_name: doctor.last_name || "",
+            identification: doctor.identification || "",
+            email: doctor.email || "",
+          },
+          assigned_device: {
+            id: device.id,
+            device_id: device.device_id,
+            name: device.name,
+          },
+          active_session: {
+            id: session.id,
+            status: statusRaw || null,
+            lead_config: session.lead_config || null,
+            sampling_hz: session.sampling_hz || null,
+            device_id: session.device_id || null,
+            started_at:
+              (session.createdAt && session.createdAt.toISOString()) ||
+              (session.created_at &&
+                typeof session.created_at.toISOString === "function" &&
+                session.created_at.toISOString()) ||
+              null,
+          },
+        });
+      }
+    });
+
+    return Array.from(uniquePatients.values());
+  } catch (e) {
+    console.error("Error en getActivePatientsForReadings:", e.message);
     throw e;
   }
 }
