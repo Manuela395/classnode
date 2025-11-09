@@ -1,6 +1,6 @@
 // routes/ecgStreamRoutes.js
 import express from "express";
-import EcgStreamController from "../controllers/ecgstreamcontroller.js";
+import EcgStreamController from "../controllers/ecgStreamcontroller.js";
 
 const router = express.Router();
 

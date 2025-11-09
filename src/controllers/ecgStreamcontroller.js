@@ -1,4 +1,4 @@
-import ecgStreamService from "../services/ecgStreamService.js";
+import ecgStreamService from "../services/ecgStream.service.js";
 
 class EcgStreamController {
   

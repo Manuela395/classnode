@@ -9,6 +9,7 @@ import doctorAppointmentsRoutes from "./doctor-appointments.routes.js";
 import clinicalsRoutes from "./clinical.routes.js";
 import ecgSessionsRoutes from "./ecgSessions.routes.js";
 import ecgStreamRoutes from "./ecgStream.routes.js";
+import ecgReadingsRoutes from "./ecg_readings.routes.js";
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use("/doctor-appointments", doctorAppointmentsRoutes);
 router.use("/clinicals", clinicalsRoutes);
 router.use("/ecg-sessions", ecgSessionsRoutes);
 router.use("/ecgstream", ecgStreamRoutes);
+router.use("/ecg-readings", ecgReadingsRoutes);
 
 
 
