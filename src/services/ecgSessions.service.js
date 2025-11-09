@@ -62,79 +62,89 @@ export async function deleteECGSession(id) {
 
 export async function getEligiblePatientsForSession() {
   try {
-    // Obtener todas las citas con sus triages y pacientes
-    const appointments = await Appointment.findAll({
+    const sessions = await ECGSession.findAll({
       include: [
         {
           model: ClinicalRegister,
           as: "clinicalRegister",
-          required: true, // Solo citas que tengan triage
+          required: true,
         },
         {
-          model: User,
-          as: "patient",
-          attributes: ["id", "name", "last_name", "identification"],
+          model: Appointment,
+          as: "appointment",
+          required: true,
+          include: [
+            {
+              model: User,
+              as: "patient",
+              required: true,
+              attributes: ["id", "name", "last_name", "identification"],
+            },
+            {
+              model: User,
+              as: "doctor",
+              required: true,
+              attributes: ["id", "name", "last_name", "identification", "email"],
+            },
+          ],
         },
         {
-          model: User,
-          as: "doctor",
-          attributes: ["id", "name", "last_name", "identification", "email"],
-        },
-        {
-          model: ECGSession,
-          as: "ecgSessions",
-          required: false, // LEFT JOIN para verificar si no existe
+          model: Device,
+          as: "device",
+          required: true,
+          attributes: ["id", "device_id", "name"],
         },
       ],
     });
 
-    // Filtrar solo las citas que NO tengan sesiones ECG y que tengan paciente válido
-    const eligibleAppointments = appointments.filter((apt) => {
-      const hasNoSessions = !apt.ecgSessions || apt.ecgSessions.length === 0;
-      const hasValidPatient = apt.patient && apt.patient.id;
-      const hasValidClinicalRegister = apt.clinicalRegister && apt.clinicalRegister.id;
-      return hasNoSessions && hasValidPatient && hasValidClinicalRegister;
+    const activeSessions = sessions.filter((session) => {
+      const status = (session.status || "").toLowerCase();
+      const isActive =
+        !status || ["active", "recording", "in_progress"].includes(status);
+      const appointment = session.appointment;
+      const patient = appointment?.patient;
+      const doctor = appointment?.doctor;
+      const device = session.device;
+
+      return (
+        isActive &&
+        Boolean(patient?.id) &&
+        Boolean(doctor?.id) &&
+        Boolean(device?.id)
+      );
     });
 
-    // Obtener todos los dispositivos usando Sequelize
-    const allDevices = await Device.findAll({
-      attributes: ["id", "device_id", "name"],
-      raw: true
-    });
-
-    // Mapear a formato simplificado con datos del paciente y su dispositivo asignado
-    const result = eligibleAppointments.map((apt) => {
-      const patientIdentification = String(apt.patient.identification || '');
-      
-      // Buscar dispositivo donde device_id coincida con patient_identification
-      const assignedDevice = allDevices.find((device) => {
-        // Comparar device_id (convertido a string) con patient_identification
-        return String(device.device_id) === String(patientIdentification);
-      });
+    const result = activeSessions.map((session) => {
+      const appointment = session.appointment;
+      const patient = appointment?.patient;
+      const doctor = appointment?.doctor;
+      const device = session.device;
 
       return {
-        patient_id: apt.patient.id,
-        patient_name: apt.patient.name || '',
-        patient_last_name: apt.patient.last_name || '',
-        patient_identification: patientIdentification,
-        appointment_id: apt.id,
-        clinical_register_id: apt.clinicalRegister.id,
-        assigned_device: assignedDevice
-          ? {
-              id: assignedDevice.id,
-              device_id: assignedDevice.device_id,
-              name: assignedDevice.name,
-            }
-          : null,
-        doctor: apt.doctor
-          ? {
-              id: apt.doctor.id,
-              name: apt.doctor.name || '',
-              last_name: apt.doctor.last_name || '',
-              identification: apt.doctor.identification || '',
-              email: apt.doctor.email || '',
-            }
-          : null,
+        session_id: session.id,
+        session_status: session.status || null,
+        patient_id: patient?.id ?? null,
+        patient_name: patient?.name || "",
+        patient_last_name: patient?.last_name || "",
+        patient_identification: String(patient?.identification || ""),
+        appointment_id: appointment?.id ?? null,
+        clinical_register_id:
+          session.clinical_register_id ??
+          session.clinicalRegister?.id ??
+          appointment?.clinicalRegister?.id ??
+          null,
+        assigned_device: {
+          id: device?.id ?? null,
+          device_id: device?.device_id ?? null,
+          name: device?.name || "",
+        },
+        doctor: {
+          id: doctor?.id ?? null,
+          name: doctor?.name || "",
+          last_name: doctor?.last_name || "",
+          identification: doctor?.identification || "",
+          email: doctor?.email || "",
+        },
       };
     });
 

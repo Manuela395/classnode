@@ -6,6 +6,7 @@ import {
   updateECGSession,
   deleteECGSession,
   getEligiblePatientsForSession,
+  getActivePatientsForReadings,
 } from "../services/ecgSessions.service.js";
 
 export async function createECGSessionController(req, res) {
@@ -65,6 +66,16 @@ export async function getEligiblePatientsController(_req, res) {
     return ok(res, { patients });
   } catch (e) {
     console.error("Error en getEligiblePatientsController:", e.message);
+    return serverErr(res, e);
+  }
+}
+
+export async function getActivePatientsController(_req, res) {
+  try {
+    const patients = await getActivePatientsForReadings();
+    return ok(res, { patients });
+  } catch (e) {
+    console.error("Error en getActivePatientsController:", e.message);
     return serverErr(res, e);
   }
 }
