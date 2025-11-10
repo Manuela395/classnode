@@ -3,8 +3,16 @@ import { Appointment, User } from "../models/index.js";
 export async function getAllAppointments() {
   return await Appointment.findAll({
     include: [
-      { model: User, as: "doctor", attributes: ["id", "name", "email"] },
-      { model: User, as: "patient", attributes: ["id", "name", "email"] },
+      {
+        model: User,
+        as: "doctor",
+        attributes: ["id", "name", "last_name", "identification", "email"],
+      },
+      {
+        model: User,
+        as: "patient",
+        attributes: ["id", "name", "last_name", "identification", "email"],
+      },
     ],
   });
 }

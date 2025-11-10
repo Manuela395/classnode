@@ -2,6 +2,7 @@ import { ok, created, badReq, notFound, serverErr } from "../_helpers/response_d
 import {
   createECGReading,
   getAllECGReadings,
+  getECGReadingById,
   ECG_READING_ERRORS,
 } from "../services/ecgReadings.service.js";
 
@@ -28,6 +29,18 @@ export async function listReadings(_req, res) {
     const readings = await getAllECGReadings();
     return ok(res, { readings });
   } catch (error) {
+    return serverErr(res, error);
+  }
+}
+
+export async function getReading(req, res) {
+  try {
+    const reading = await getECGReadingById(req.params.id);
+    return ok(res, { reading });
+  } catch (error) {
+    if (error.message === "ECG_READING_NOT_FOUND") {
+      return notFound(res, error.message);
+    }
     return serverErr(res, error);
   }
 }

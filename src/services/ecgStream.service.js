@@ -11,14 +11,14 @@ class EcgStreamService extends EventEmitter {
   }
 
   // Procesar y broadcast datos (equivalente a process_and_broadcast)
-  processAndBroadcast(data) {
+  async processAndBroadcast(data) {
     // Aquí puedes aplicar tu lógica de procesamiento (filtros, BPM, etc.)
+    const datafiltred = await EcgAnalysis.analyzeECGSignal(data.samples, data.sample_rate);
     // Por ahora solo lo reenvía directamente a los suscriptores
     for (const cb of this.subscribers) {
       try {
-        cb(data); // envía data a cada cliente conectado
+        cb(datafiltred); // envía data a cada cliente conectado
       } catch (e) {
-        throw ('Error enviando SSE:', e);
         console.error('Error enviando SSE:', e);
       }
     }
