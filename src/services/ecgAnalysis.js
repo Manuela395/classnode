@@ -56,8 +56,8 @@ class EcgAnalysis {
       const heartRate = this.calculateBPM(rPeaks, fs);
       
       return {
-        filteredSignal: filteredSignal.map(v => Math.round(v * 1000) / 1000), // Redondear a 3 decimales
-        heartRate: Math.round(heartRate * 10) / 10, // Redondear a 1 decimal
+        samples: filteredSignal.map(v => Math.round(v * 1000) / 1000), // Redondear a 3 decimales
+        bpm: Math.round(heartRate * 10) / 10, // Redondear a 1 decimal
         rPeaks,
         signalQuality: this.assessSignalQuality(filteredSignal)
       };

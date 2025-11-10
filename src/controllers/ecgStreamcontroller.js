@@ -7,7 +7,7 @@ class EcgStreamController {
     // //console.log('Insertando bloque de datos ECG');
     try {
       const data = req.body;
-      console.log('Datos recibidos:', data);
+      //console.log('Datos recibidos:', data);
       
       // Validaciones básicas
       if (!data || typeof data !== 'object') {

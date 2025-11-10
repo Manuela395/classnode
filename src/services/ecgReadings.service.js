@@ -1,3 +1,4 @@
+// src/services/ecgReading.service.js
 import { ECGReading, ECGSession, Appointment, User } from "../models/index.js";
 
 const REQUIRED_ERROR = "FIELDS_REQUIRED";
@@ -5,9 +6,20 @@ const INVALID_SESSION_ERROR = "INVALID_SESSION_ID";
 const INVALID_RECORD_COUNT_ERROR = "INVALID_RECORD_COUNT";
 const SESSION_NOT_FOUND_ERROR = "ECG_SESSION_NOT_FOUND";
 
+/**
+ * Crear una nueva lectura ECG en la base de datos
+ * Recibe:
+ *  - ecg_session_id (FK)
+ *  - record_count
+ *  - observations
+ *  - data (array o JSON con los datos del ECG)
+ *  - sample_rate (frecuencia de muestreo)
+ *  - length_ms (duración opcional)
+ */
 export async function createECGReading(payload = {}) {
-  const { ecg_session_id, record_count, observations } = payload;
+  const { ecg_session_id, record_count, observations, data, sample_rate, length_ms } = payload;
 
+  // === Validaciones básicas ===
   if (
     ecg_session_id === undefined ||
     ecg_session_id === null ||
@@ -32,6 +44,7 @@ export async function createECGReading(payload = {}) {
     throw new Error(SESSION_NOT_FOUND_ERROR);
   }
 
+  // === Preparar observaciones ===
   let trimmedObservations = null;
   if (typeof observations === "string") {
     trimmedObservations = observations.trim();
@@ -39,15 +52,20 @@ export async function createECGReading(payload = {}) {
     trimmedObservations = observations;
   }
 
+  // === Crear registro en la BD ===
   const reading = await ECGReading.create({
     ecg_session_id: sessionId,
     record_count: count,
     observations: trimmedObservations,
+    data: typeof data === "object" ? JSON.stringify(data) : data || null, // ✅ Guarda los datos ECG
+    sample_rate: sample_rate ?? 250,
+    length_ms: length_ms ?? count * 4, // opcional: calcula duración aprox.
   });
 
   return reading.get({ plain: true });
 }
 
+// === Códigos de error exportables ===
 export const ECG_READING_ERRORS = {
   REQUIRED_ERROR,
   INVALID_SESSION_ERROR,
@@ -55,6 +73,7 @@ export const ECG_READING_ERRORS = {
   SESSION_NOT_FOUND_ERROR,
 };
 
+// === Helpers ===
 function buildReadingInclude() {
   return [
     {
@@ -129,6 +148,7 @@ function mapReading(reading, { includeRaw = false } = {}) {
   return result;
 }
 
+// === Obtener todas las lecturas ===
 export async function getAllECGReadings() {
   const readings = await ECGReading.findAll({
     include: buildReadingInclude(),
@@ -138,6 +158,7 @@ export async function getAllECGReadings() {
   return readings.map((reading) => mapReading(reading));
 }
 
+// === Obtener una lectura específica ===
 export async function getECGReadingById(id) {
   const reading = await ECGReading.findByPk(id, {
     include: buildReadingInclude(),
