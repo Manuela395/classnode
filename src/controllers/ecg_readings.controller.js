@@ -1,6 +1,7 @@
-import { created, badReq, notFound, serverErr } from "../_helpers/response_data.js";
+import { ok, created, badReq, notFound, serverErr } from "../_helpers/response_data.js";
 import {
   createECGReading,
+  getAllECGReadings,
   ECG_READING_ERRORS,
 } from "../services/ecgReadings.service.js";
 
@@ -19,6 +20,15 @@ export async function insertReading(req, res) {
       default:
         return serverErr(res, error);
     }
+  }
+}
+
+export async function listReadings(_req, res) {
+  try {
+    const readings = await getAllECGReadings();
+    return ok(res, { readings });
+  } catch (error) {
+    return serverErr(res, error);
   }
 }
 
