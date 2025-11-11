@@ -3,6 +3,26 @@ import { User, Role, UserRole } from "../models/index.js";
 import { hash } from "../_helpers/password.js";
 import { sign } from "../_helpers/jwt.js";
 
+function ensureValidBirthdate(birthdate) {
+  if (birthdate === undefined || birthdate === null || birthdate === "") {
+    return;
+  }
+
+  const parsedDate = new Date(birthdate);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error("INVALID_BIRTHDATE");
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  parsedDate.setHours(0, 0, 0, 0);
+
+  if (parsedDate.getTime() > today.getTime()) {
+    throw new Error("INVALID_BIRTHDATE");
+  }
+}
+
 // Crear usuario con rol asignado
 export async function createUser(data) {
   const {
@@ -16,6 +36,8 @@ export async function createUser(data) {
     password,
     roles,
   } = data;
+
+  ensureValidBirthdate(birthdate);
 
   // Validar si ya existe un usuario con el mismo email o identificación
   const existingUser = await User.findOne({
@@ -151,6 +173,8 @@ export async function updateUser(id, data = {}) {
       data.password_hash = null;
     }
   }
+
+  ensureValidBirthdate(data.birthdate);
 
   // Evitar actualizar directamente el campo `password`
   delete data.password;

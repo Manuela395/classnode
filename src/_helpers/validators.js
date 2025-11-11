@@ -4,7 +4,13 @@ export const registerSchema = Joi.object({
   name: Joi.string().min(2).max(100).required(),
   last_name: Joi.string().min(2).max(100).required(),
   gender: Joi.string().valid("M", "F").required(),
-  birthdate: Joi.date().required(),
+  birthdate: Joi.date()
+    .max("now")
+    .required()
+    .messages({
+      "date.base": "La fecha de nacimiento es inválida.",
+      "date.max": "La fecha de nacimiento no puede ser una fecha futura.",
+    }),
   phone: Joi.string().min(7).max(15).required(),
   identification: Joi.string().min(4).max(30).required(),
   email: Joi.string().email().required(),

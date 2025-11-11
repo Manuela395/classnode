@@ -29,6 +29,7 @@ export async function registerController(req, res) {
     if (e.message === "USER_EXISTS") return conflict(res, "USER_EXISTS");
     if (e.message === "ROLE_NOT_FOUND") return badReq(res, "ROLE_NOT_FOUND");
     if (e.message === "PASSWORD_REQUIRED") return badReq(res, "PASSWORD_REQUIRED");
+    if (e.message === "INVALID_BIRTHDATE") return badReq(res, "INVALID_BIRTHDATE");
     return serverErr(res, e);
   }
 }
@@ -62,6 +63,7 @@ export async function updateUserController(req, res) {
   } catch (e) {
     if (e.message === "USER_NOT_FOUND") return notFound(res, "USER_NOT_FOUND");
     if (e.message === "PASSWORD_REQUIRED") return badReq(res, "PASSWORD_REQUIRED");
+    if (e.message === "INVALID_BIRTHDATE") return badReq(res, "INVALID_BIRTHDATE");
     return serverErr(res, e);
   }
 }

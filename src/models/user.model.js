@@ -26,7 +26,7 @@ export default (sequelize) => {
       },
       password_hash: {
         type: DataTypes.STRING(200),
-        allowNull: true, // ✅ ahora puede ser null para pacientes
+        allowNull: true,
       },
       name: {
         type: DataTypes.STRING(120),
@@ -45,7 +45,7 @@ export default (sequelize) => {
         allowNull: true,
       },
       phone: {
-        type: DataTypes.STRING(30),
+        type: DataTypes.STRING(10),
         allowNull: true,
       },
       is_active: {
