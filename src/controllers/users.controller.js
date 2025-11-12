@@ -78,3 +78,36 @@ export async function deleteUserController(req, res) {
     return serverErr(res, e);
   }
 }
+// ✅ Nuevo getUserByIdentificationController
+import { User } from "../models/index.js"; // 👈 asegúrate de tener esta línea al inicio
+
+export async function getUserByIdentificationController(req, res) {
+  try {
+    const { identification } = req.params;
+
+    // Busca directamente en la base de datos
+    const user = await User.findOne({
+      where: { identification },
+      attributes: [
+        "id",
+        "name",
+        "last_name",
+        "gender",
+        "birthdate",
+        "phone",
+        "email",
+        "identification",
+        "is_active",
+      ],
+      include: {
+        association: "role",
+        attributes: ["id", "code", "name"],
+      },
+    });
+
+    if (!user) return notFound(res, "USER_NOT_FOUND");
+    return ok(res, { user });
+  } catch (e) {
+    return serverErr(res, e);
+  }
+}
